@@ -16,6 +16,9 @@ jobs:
       - name: Extract Android project
         run: |
           unzip -q GeoLiteNative-ready-for-GitHub.zip
+      - name: Enable AndroidX
+        working-directory: GeoLiteNative
+        run: echo "android.useAndroidX=true" > gradle.properties
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
