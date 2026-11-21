@@ -13,22 +13,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Extract Android project
+
+      - name: Reassemble latest Android source archive
         run: |
-          unzip -q GeoLiteNative-ready-for-GitHub.zip
-      - name: Enable AndroidX
+          cat .build-input/GeoLiteNative.zip.b64.part* | base64 -d > GeoLiteNative.zip
+          echo "d835dcc890d78da1c71a532cad23ddd3bc9497c2d401b07412b13f5ac3d75340  GeoLiteNative.zip" | sha256sum -c -
+          unzip -q GeoLiteNative.zip
+
+      - name: Fix Kotlin overload ambiguity and increase Gradle memory
         working-directory: GeoLiteNative
-        run: echo "android.useAndroidX=true" > gradle.properties
+        run: |
+          sed -i 's/-Xmx2048m/-Xmx3g -XX:MaxMetaspaceSize=1g/' gradle.properties
+          python3 - <<'PY'
+          from pathlib import Path
+          source = Path("app/src/main/java/com/geolite/app/ui/MapScreen.kt")
+          text = source.read_text()
+          old = "LocationManagerCompat.getCurrentLocation(lm, provider, null, ContextCompat.getMainExecutor(ctx)) { cb(it) }"
+          new = "LocationManagerCompat.getCurrentLocation(lm, provider, null as android.os.CancellationSignal?, ContextCompat.getMainExecutor(ctx)) { cb(it) }"
+          if old not in text:
+              raise SystemExit("Expected getCurrentLocation call was not found; source layout differs.")
+          source.write_text(text.replace(old, new, 1))
+          PY
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+
       - name: Build debug APK
         working-directory: GeoLiteNative
-        run: gradle assembleDebug
+        run: gradle assembleDebug --no-daemon
+
       - uses: actions/upload-artifact@v4
         with:
           name: GeoLiteNative-debug-apk
