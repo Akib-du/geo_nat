@@ -13,10 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Reassemble project archive
+      - name: Extract Android project
         run: |
-          cat GeoLiteNative-source.b64.part* | base64 -d > GeoLiteNative-source.zip
-          unzip -q GeoLiteNative-source.zip
+          unzip -q GeoLiteNative-ready-for-GitHub.zip
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
